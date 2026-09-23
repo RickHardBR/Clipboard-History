@@ -45,6 +45,7 @@ TRANSLATIONS = {
     "btn_copy": "Copiar Selecionado",
     "btn_delete": "Excluir",
     "btn_save_txt": "Salvar TXT",
+    "btn_save_img": "Salvar Imagem",
     "btn_deleted": "Apagados",
     "dialog_warn_title": "Aviso",
     "dialog_warn_select": "Selecione um item primeiro.",
@@ -112,6 +113,7 @@ TRANSLATIONS = {
     "btn_copy": "Copy Selected",
     "btn_delete": "Delete",
     "btn_save_txt": "Save TXT",
+    "btn_save_img": "Save Image",
     "btn_deleted": "Trash",
     "dialog_warn_title": "Warning",
     "dialog_warn_select": "Please select an item first.",
@@ -179,6 +181,7 @@ TRANSLATIONS = {
     "btn_copy": "Copiar Seleccion",
     "btn_delete": "Eliminar",
     "btn_save_txt": "Guardar TXT",
+    "btn_save_img": "Guardar Imagen",
     "btn_deleted": "Papelera",
     "dialog_warn_title": "Aviso",
     "dialog_warn_select": "Seleccione un elemento primero.",
@@ -693,6 +696,9 @@ def on_tab_change(idx):
     else:
       frame_image_controls.pack_forget()
 
+  if 'btn_save' in globals() and btn_save:
+    btn_save.set_text(t("btn_save_img") if cat == 'image' else t("btn_save_txt"))
+
 def change_view_mode(mode):
   global image_view_mode, selected_image_index
   image_view_mode = mode
@@ -762,24 +768,51 @@ def delete_selected():
       update_list_view('image')
       if edit_window and edit_window.winfo_exists(): edit_window.destroy()
 
-def save_as_txt():
+def save_as_file():
   cat = get_current_category()
-  if cat not in ('text', 'link'):
-    messagebox.showinfo(t("dialog_warn_title"), t("dialog_txt_only_msg"))
-    return
-  cl = custom_list_text if cat == 'text' else custom_list_link
-  idx, text = cl.get_selected()
-  if idx is None:
-    messagebox.showwarning(t("dialog_warn_title"), t("dialog_warn_select"))
-    return
-  filepath = filedialog.asksaveasfilename(
-    defaultextension=".txt", filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")])
-  if filepath:
-    try:
-      with open(filepath, 'w', encoding='utf-8') as f: f.write(text)
-      messagebox.showinfo(t("dialog_success_title"), t("dialog_file_saved_msg"))
-    except Exception as e:
-      messagebox.showerror(t("dialog_error_title"), t("dialog_error_msg", e))
+  if cat == 'image':
+    if selected_image_index is None or selected_image_index >= len(history['image']):
+      messagebox.showwarning(t("dialog_warn_title"), t("dialog_warn_select"))
+      return
+    item = list(history['image'])[selected_image_index]
+    filepath = filedialog.asksaveasfilename(
+      defaultextension=".png",
+      filetypes=[
+        ("PNG Image", "*.png"),
+        ("JPEG Image", "*.jpg;*.jpeg"),
+        ("Bitmap Image", "*.bmp"),
+        ("All Files", "*.*")
+      ]
+    )
+    if filepath:
+      try:
+        img = Image.open(item['path'])
+        ext = os.path.splitext(filepath)[1].lower()
+        if ext in ('.jpg', '.jpeg') and img.mode in ('RGBA', 'LA', 'P'):
+          img = img.convert('RGB')
+        img.save(filepath)
+        messagebox.showinfo(t("dialog_success_title"), t("dialog_file_saved_msg"))
+      except Exception as e:
+        messagebox.showerror(t("dialog_error_title"), t("dialog_error_msg", e))
+  else:
+    cl = custom_list_text if cat == 'text' else custom_list_link
+    idx, text = cl.get_selected()
+    if idx is None:
+      messagebox.showwarning(t("dialog_warn_title"), t("dialog_warn_select"))
+      return
+    filepath = filedialog.asksaveasfilename(
+      defaultextension=".txt",
+      filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")]
+    )
+    if filepath:
+      try:
+        with open(filepath, 'w', encoding='utf-8') as f:
+          f.write(text)
+        messagebox.showinfo(t("dialog_success_title"), t("dialog_file_saved_msg"))
+      except Exception as e:
+        messagebox.showerror(t("dialog_error_title"), t("dialog_error_msg", e))
+
+save_as_txt = save_as_file
 
 def open_edit_window(idx, text, cat):
   global edit_window
@@ -1073,7 +1106,7 @@ def apply_live_preferences(new_theme, new_accent, new_lang):
     btn_del.set_colors(bg=p["danger"], fg="#fff", parent_bg=p["bg"])
 
   if btn_save:
-    btn_save.set_text(t("btn_save_txt"))
+    btn_save.set_text(t("btn_save_img") if current_tab_index == 2 else t("btn_save_txt"))
     btn_save.set_colors(bg=p["success"], fg="#fff", parent_bg=p["bg"])
 
   if btn_deleted:
@@ -1245,9 +1278,9 @@ btn_del = RoundedButton(bf, text=t("btn_delete"), command=delete_selected,
               radius=16, width=125, height=42)
 btn_del.grid(row=0, column=1, padx=7)
 
-btn_save = RoundedButton(bf, text=t("btn_save_txt"), command=save_as_txt,
+btn_save = RoundedButton(bf, text=t("btn_save_txt"), command=save_as_file,
               bg=p["success"], fg="#fff",
-              radius=16, width=135, height=42)
+              radius=16, width=145, height=42)
 btn_save.grid(row=0, column=2, padx=7)
 
 btn_deleted = RoundedButton(bf, text=t("btn_deleted"), command=open_deleted_window,
