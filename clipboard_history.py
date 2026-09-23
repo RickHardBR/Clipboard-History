@@ -557,6 +557,29 @@ class CustomList(tk.Frame):
 def get_image_hash(img):
   return hashlib.md5(img.tobytes()).hexdigest()
 
+def is_clipboard_matching(cat, item):
+  try:
+    if cat == 'image':
+      cur_img = ImageGrab.grabclipboard()
+      if isinstance(cur_img, Image.Image):
+        target_hash = item.get('hash') if isinstance(item, dict) else item
+        return get_image_hash(cur_img) == target_hash
+      return False
+    else:
+      cur_text = root.clipboard_get()
+      cur_norm = cur_text.strip().replace('\r\n', '\n')
+      item_norm = item.strip().replace('\r\n', '\n')
+      return cur_norm == item_norm
+  except Exception:
+    return False
+
+def clear_clipboard_if_matches(cat, item):
+  try:
+    if is_clipboard_matching(cat, item):
+      root.clipboard_clear()
+  except Exception:
+    pass
+
 def handle_image(img):
   img_hash = get_image_hash(img)
   filepath = os.path.join(IMAGE_DIR, f"{img_hash}.png")
@@ -649,8 +672,9 @@ def update_images_view():
   images_canvas.config(scrollregion=images_canvas.bbox("all"))
 
 def on_tab_change(idx):
-  global current_tab_index
+  global current_tab_index, selected_image_index
   current_tab_index = idx
+  selected_image_index = None
   cat = TAB_CATS[idx]
 
   # tab_frames may not exist yet during initial CustomTabBar construction
@@ -670,8 +694,9 @@ def on_tab_change(idx):
       frame_image_controls.pack_forget()
 
 def change_view_mode(mode):
-  global image_view_mode
+  global image_view_mode, selected_image_index
   image_view_mode = mode
+  selected_image_index = None
   update_images_view()
 
 # ============================================================
@@ -719,19 +744,23 @@ def delete_selected():
       history[cat].clear()
       for x in tmp: history[cat].append(x)
       deleted_history[cat].appendleft(deleted)
+      clear_clipboard_if_matches(cat, deleted)
       update_list_view(cat)
       if edit_window and edit_window.winfo_exists(): edit_window.destroy()
   elif cat == 'image':
-    if selected_image_index is not None:
-      if messagebox.askyesno(t("dialog_confirm_del_title"), t("dialog_confirm_del_img_msg")):
-        tmp = list(history['image'])
-        deleted = tmp.pop(selected_image_index)
-        history['image'].clear()
-        for x in tmp: history['image'].append(x)
-        deleted_history['image'].appendleft(deleted)
-        selected_image_index = None
-        update_list_view('image')
-        if edit_window and edit_window.winfo_exists(): edit_window.destroy()
+    if selected_image_index is None or selected_image_index >= len(history['image']):
+      messagebox.showwarning(t("dialog_warn_title"), t("dialog_warn_select"))
+      return
+    if messagebox.askyesno(t("dialog_confirm_del_title"), t("dialog_confirm_del_img_msg")):
+      tmp = list(history['image'])
+      deleted = tmp.pop(selected_image_index)
+      history['image'].clear()
+      for x in tmp: history['image'].append(x)
+      deleted_history['image'].appendleft(deleted)
+      clear_clipboard_if_matches('image', deleted)
+      selected_image_index = None
+      update_list_view('image')
+      if edit_window and edit_window.winfo_exists(): edit_window.destroy()
 
 def save_as_txt():
   cat = get_current_category()
@@ -855,11 +884,8 @@ def open_deleted_window():
       tmp.remove(item)
       deleted_history[cat].clear()
       for x in tmp: deleted_history[cat].append(x)
-      if cat in ('text', 'link'):
-        try:
-          if root.clipboard_get().strip() == item: root.clipboard_clear()
-        except: pass
-      elif cat == 'image':
+      clear_clipboard_if_matches(cat, item)
+      if cat == 'image':
         try: os.remove(item['path'])
         except: pass
       refresh()
@@ -1231,5 +1257,6 @@ btn_deleted = RoundedButton(bf, text=t("btn_deleted"), command=open_deleted_wind
               radius=16, width=135, height=42)
 btn_deleted.grid(row=0, column=3, padx=7)
 
-save_clipboard()
-root.mainloop()
+if __name__ == "__main__":
+  save_clipboard()
+  root.mainloop()
