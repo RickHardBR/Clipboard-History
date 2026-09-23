@@ -1,0 +1,38 @@
+# Bytecode Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Logs locais e depuração
+*.log
+trace.log
+debug.log
+debug_log.txt
+
+# Scripts temporários de teste e limpeza
+clean_script.py
+test_ui.py
+test_theme.json
+custom_themes.json
+
+# Dados pessoais e capturas de tela (privacidade)
+clipboard_images/
+
+# Configurações locais do usuário (geradas automaticamente)
+config.json
+
+# Documentação interna de desenvolvimento
+historico.md
+
+# Build e arquivos compilados (PyInstaller)
+# (Recomendado disponibilizar o executável via GitHub Releases)
+build/
+dist/
+*.spec
+
+# Ambientes virtuais e IDEs
+venv/
+env/
+.venv/
+.idea/
+.vscode/
